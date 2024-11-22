@@ -1,10 +1,33 @@
 # TODO add logic gates, add graphs, add displays, and points,
-import pyperclip, webbrowser, keyboard, time
+import pyperclip, webbrowser, keyboard, time, math
 class Compiler:
     def __init__(self):
         self.keyword_functions = {"let": self.define_variable, "when": self.conditional_argument}
         self.variables = {}
         self.variable_count = 0
+    def split_string(self, data: str, line):
+        """Splits a string into a list, seperated by ' ', and parses numbers correctly too."""
+        # defining variables
+        output = [""]
+        how_deep_in_equation = 0
+        equation_start = 0
+        for char in enumerate(data):
+            if char[1] == "(":
+                how_deep_in_equation += 1
+                if how_deep_in_equation == 0:
+                    equation_start = char[0] + 1
+            elif char[1] == ")":
+                how_deep_in_equation -= 1
+                if how_deep_in_equation == 0:
+                    equation_start = 0
+            elif char[1] == " " and how_deep_in_equation == 0:
+                output.append("")
+            else:
+                output[-1] += char[1]
+            # checking for errors
+        if equation_start != 0:
+            raise Exception(f"Error on line {line}, character {equation_start}. Unmatched parentheses")
+        return output
     def define_variable(self, data: tuple or list, line: int):
         """Returns a string based off the passed in data to define a variable, compiled into Desmos"""
         # checking if there is too little, or too much data passed in
@@ -20,17 +43,18 @@ class Compiler:
                 raise Exception(f"Error on line {line}. A variable with the name '{data[1]}' has already been defined.")
         # checking if the variable type is valid
         try:
-            ["graph", "num", "bool", "point"].index(data[1])
-            # updating self.variables, self.functions for variable reassignment, and incrementing self.variable_count
-            self.variables[data[1]] = (data[0], self.variable_count)
-            self.variable_count += 1
-            self.keyword_functions[data[1]] = self.reasign_variable
-            if len(data) == 3:
-                return f"v{self.variable_count - 1} = 0"
-            elif len(data) == 5:
-                return f"v{self.variable_count - 1} = 0 \b{self.reasign_variable([data[2], data[4]], line)}"
+            ["graph", "num", "bool", "point", "color"].index(data[1])
         except:
             raise Exception(f"Error on line {line}. '{data[1]}' Is not a valid variable type.")
+        # updating self.variables, self.functions for variable reassignment, and incrementing self.variable_count
+        self.variables[data[2]] = (data[1], self.variable_count)
+        self.variable_count += 1
+        self.keyword_functions[data[1]] = self.reassign_variable
+        # assigning the variable's value equal to the variable type's initial value
+        if len(data) == 3:
+            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0), (0, 0, 0)"][["graph", "num", "bool", "point", "color)"].index(data[1])]}"
+        elif len(data) == 5:
+            return f"v{self.variable_count - 1} = 0\n{self.reassign_variable(data[2:5], line)}"
     def conditional_argument(self, data: list or tuple, line: int):
         """Returns a string based of the passed in data to only run code when something is true, compiled into Desmos"""
         try:
@@ -41,9 +65,32 @@ class Compiler:
                 raise Exception(f"Error on line {line}, expected ':' after {data[0]}")
             return self.compile_line(data[1: len(data) - 1], line) + "{" + data[0] + "}"
     def reassign_variable(self, data, line):
-        pass
+        if self.variables.get(data[0]) == None:
+            raise Exception(f"Error on line {line}. Cannot reassign a variable that has not been defined")
+        else:
+            var_type = self.variables.get(data[0])[0]
+            if var_type == "bool":
+                if data[2] == "true":
+                    return f"{data[0]} = 1"
+                elif data[2] == "false":
+                    return f"{data[0]} = 0"
+                else:
+                    raise Exception(f"Error on line {line}. '{data[0]}' cannot be assigned to a bool type variable.")
+                pass
+            elif var_type == "num":
+                try:
+                    return f"{data[0]} = {int(data[2])}"
+                except:
+                    if data[2].__contains__("3"):
+                        print("true")
+            elif var_type == "graph":
+                pass
+            elif var_type == "point":
+                pass
+            else:
+                raise Exception(f"Error on line {line}. A variable has been defined with a non-existing variable type")
     def compile_line(self, data: str, line: int):
-        seperated_data = data.split(" ")
+        seperated_data = self.split_string(data, line)
         func = self.keyword_functions.get(seperated_data[0])
         if func == None:
             raise Exception(f"Error on line {line}. '{data[0]}' is not a keyword, nor defined")
@@ -56,10 +103,10 @@ class Compiler:
         file = open(file).readlines()
         # reading and compiling each line
         for i in range(len(file)):
-            compiled_lines.append(self.compile_line(file[i], i))
+            compiled_lines.append(self.compile_line(file[i], i + 1))
+        print(compiled_lines)
         # turning the list into a string
-        compiled_string = compiled_lines[0]
-        for i in range(len(compiled_lines) - 1):
-            compiled_string += compiled_lines[i] + "\b"
-        return compiled_string
-print(Compiler().compile("testing compilation file"))
+        for i in range(len(compiled_lines)):
+            compiled_string += compiled_lines[i] + "\n"
+        return compiled_string + "\"Made using Desmos Script (https://github.com/Rufis72/Desmos-script)"
+pyperclip.copy(Compiler().compile("testing compilation file"))
