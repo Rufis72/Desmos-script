@@ -79,6 +79,7 @@ class Compiler:
                     raise Exception(f"Error on line {line}. '{data[0]}' cannot be assigned to a bool type variable.")
                 pass
             elif var_type == "num":
+                # checking if the new value is just a number
                 try:
                     return f"{data[0]} = {int(data[2])}"
                 except:
@@ -97,15 +98,28 @@ class Compiler:
                             # checking if the number is a math operator
                             if len(num) == 1 and self.operators.__contains__(num):
                                 continue
+                            # checking if a variable has not been defined
                             if self.variables.get(num) == None:
-                                raise Exception(f"Error on line {line}. \'{num}\' is not defined")
+                                raise Exception(f"Error on line {line}. '{num}' is not defined")
+                            # checking if a variable is of an illegal type for nums
                             if self.variables.get(num)[0] != "num":
-                                raise Exception(f"Error on line {line}. \'{num}\' type variables cannot be used when changing the value of a num type variable")
+                                raise Exception(f"Error on line {line}. '{num}' type variables cannot be used when changing the value of a num type variable")
                     return  f"{data[0]} = {data[2]}"
             elif var_type == "graph":
                 pass
             elif var_type == "point":
-                pass
+                # checking the correct amount of numbers was passed in
+                if data[2].count(",") != 1:
+                    raise Exception(f"Error on line {line}. Expected two numbers within '(' and ')' instead got {data[2].count(",") + 1}")
+                # checking if every number is a valid number
+                for num in enumerate(data[2].split(",")):
+                    # checking if you can float the number
+                    try:
+                        float(num[1])
+                        continue
+                    except:
+                        raise Exception(f"Error on line {line}. '{num[1].replace(" ", "")}' is not a valid number")
+                return f"{data[0]} = ({data[2]})"
             else:
                 raise Exception(f"Error on line {line}. A variable has been defined with a non-existing variable type")
     def compile_line(self, data: str, line: int):
