@@ -5,6 +5,7 @@ class Compiler:
         self.keyword_functions = {"let": self.define_variable, "when": self.conditional_argument}
         self.variables = {}
         self.variable_count = 0
+        self.operators = "-+/*^%"
     def split_string(self, data: str, line):
         """Splits a string into a list, seperated by ' ', and parses numbers correctly too."""
         # defining variables
@@ -81,8 +82,26 @@ class Compiler:
                 try:
                     return f"{data[0]} = {int(data[2])}"
                 except:
-                    if data[2].__contains__("3"):
-                        print("true")
+                    # checking if data[2] is a math equation
+                    for num in data[2].split(" "):
+                        # removing any parentheses
+                        if num[0] == "(":
+                            del num[0]
+                        if num[-1] == ")":
+                            del num[-1]
+                        # checking if the number has any variables
+                        try:
+                            float(num)
+                            continue
+                        except:
+                            # checking if the number is a math operator
+                            if len(num) == 1 and self.operators.__contains__(num):
+                                continue
+                            if self.variables.get(num) == None:
+                                raise Exception(f"Error on line {line}. \'{num}\' is not defined")
+                            if self.variables.get(num)[0] != "num":
+                                raise Exception(f"Error on line {line}. \'{num}\' type variables cannot be used when changing the value of a num type variable")
+                    return  f"{data[0]} = {data[2]}"
             elif var_type == "graph":
                 pass
             elif var_type == "point":
@@ -104,9 +123,7 @@ class Compiler:
         # reading and compiling each line
         for i in range(len(file)):
             compiled_lines.append(self.compile_line(file[i], i + 1))
-        print(compiled_lines)
         # turning the list into a string
         for i in range(len(compiled_lines)):
             compiled_string += compiled_lines[i] + "\n"
         return compiled_string + "\"Made using Desmos Script (https://github.com/Rufis72/Desmos-script)"
-pyperclip.copy(Compiler().compile("testing compilation file"))
