@@ -2,10 +2,12 @@
 import pyperclip, webbrowser, keyboard, time, math
 class Compiler:
     def __init__(self):
-        self.keyword_functions = {"let": self.define_variable, "when": self.conditional_argument}
+        self.keyword_functions = {"let": self.define_variable, "when:": self.when}
         self.variables = {}
         self.variable_count = 0
         self.operators = "-+/*^%"
+
+
     def split_string(self, data: str, line):
         """Splits a string into a list, seperated by ' ', and parses numbers correctly too."""
         # defining variables
@@ -29,6 +31,8 @@ class Compiler:
         if equation_start != 0:
             raise Exception(f"Error on line {line}, character {equation_start}. Unmatched parentheses")
         return output
+
+
     def define_variable(self, data: tuple or list, line: int):
         """Returns a string based off the passed in data to define a variable, compiled into Desmos"""
         # checking if there is too little, or too much data passed in
@@ -50,21 +54,25 @@ class Compiler:
         # updating self.variables, self.functions for variable reassignment, and incrementing self.variable_count
         self.variables[data[2]] = (data[1], self.variable_count)
         self.variable_count += 1
-        self.keyword_functions[data[1]] = self.reassign_variable
         # assigning the variable's value equal to the variable type's initial value
         if len(data) == 3:
             return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0), (0, 0, 0)"][["graph", "num", "bool", "point", "color)"].index(data[1])]}"
         elif len(data) == 5:
             return f"v{self.variable_count - 1} = 0\n{self.reassign_variable(data[2:5], line)}"
-    def conditional_argument(self, data: list or tuple, line: int):
+
+
+    def when(self, data: list or tuple, line: int):
         """Returns a string based of the passed in data to only run code when something is true, compiled into Desmos"""
-        try:
-            ["let", "when"].index(data[1])
-            raise Exception(f"Error on line {line}, cannot perform {data[1]} within when")
-        except:
-            if data[0][len(data[0]) - 1] != ":":
-                raise Exception(f"Error on line {line}, expected ':' after {data[0]}")
-            return self.compile_line(data[1: len(data) - 1], line) + "{" + data[0] + "}"
+        if data[2] == "let" or data[2] == "when:":
+            raise Exception(f"Error on line {line}, cannot perform {data[2]} within when")
+        if data[0][len(data[0]) - 1] != ":":
+            raise Exception(f"Error on line {line}, expected ':' after {data[1]}")
+        compiled_line = ""
+        for keyword in data[2:len(data)]:
+            compiled_line += keyword + " "
+        return self.compile_line(compiled_line, line) + "{" + data[1] + "}"
+
+
     def reassign_variable(self, data, line):
         if self.variables.get(data[0]) == None:
             raise Exception(f"Error on line {line}. Cannot reassign a variable that has not been defined")
@@ -122,12 +130,19 @@ class Compiler:
                 return f"{data[0]} = ({data[2]})"
             else:
                 raise Exception(f"Error on line {line}. A variable has been defined with a non-existing variable type")
+
+
     def compile_line(self, data: str, line: int):
         seperated_data = self.split_string(data, line)
         func = self.keyword_functions.get(seperated_data[0])
         if func == None:
-            raise Exception(f"Error on line {line}. '{data[0]}' is not a keyword, nor defined")
+            if self.variables.get(seperated_data[0]) != None:
+                return self.reassign_variable(data, line)
+            else:
+                raise Exception(f"Error on line {line}. '{seperated_data[0]}' is not a keyword, nor defined")
         return func(seperated_data, line)
+
+
     def compile(self, file: str):
         """Compiles the passed in file"""
         # defining variables
@@ -141,3 +156,4 @@ class Compiler:
         for i in range(len(compiled_lines)):
             compiled_string += compiled_lines[i] + "\n"
         return compiled_string + "\"Made using Desmos Script (https://github.com/Rufis72/Desmos-script)"
+pyperclip.copy(Compiler().compile("testing compilation file"))
