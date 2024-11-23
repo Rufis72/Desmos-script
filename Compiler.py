@@ -139,7 +139,7 @@ class Compiler:
             if self.variables.get(seperated_data[0]) != None:
                 return self.reassign_variable(data, line)
             else:
-                raise Exception(f"Error on line {line}. '{seperated_data[0]}' is not a keyword, nor defined")
+                raise Exception(f"Error on line {line}. '{seperated_data[0]}' is not defined")
         return func(seperated_data, line)
 
 
