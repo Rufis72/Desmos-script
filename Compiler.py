@@ -2,7 +2,7 @@
 import unicodedata
 class Compiler:
     def __init__(self):
-        self.keyword_functions = {"let": self.define_variable, "when:": self.when}
+        self.keyword_functions = {"let": self.define_variable, "when:": self.when, "raw": self.raw}
         self.variables = {}
         self.variable_count = 0
         self.operators = "-+/*^%"
@@ -49,30 +49,26 @@ class Compiler:
                 output[-1] += "]"
             elif char[1] == "." and not in_string:
                 output.append(".")
-            elif char[1] == "'":
+            elif char[1] == "\'":
                 if in_string and string_starting_character:
+                    output[-1] += "\'"
+                elif in_string and not string_starting_character:
                     in_string = False
-                    output[-1] += "'"
-                    string_start = 0
-                elif not string_starting_character:
-                    string_starting_character = False
-                    in_string = True
-                    output[-1] += "'"
-                    string_start += char[0] + 1
+                    output[-1] += "\'"
                 else:
-                    output[-1] += "'"
+                    output[-1] += "\'"
+                    in_string = True
+                    string_start = char[0] + 1
             elif char[1] == "\"":
                 if in_string and not string_starting_character:
+                    output[-1] += "\""
+                elif in_string and string_starting_character:
                     in_string = False
                     output[-1] += "\""
-                    string_start = 0
-                elif string_starting_character:
-                    string_starting_character = True
-                    in_string = True
-                    output[-1] += "\""
-                    string_start += char[0] + 1
                 else:
                     output[-1] += "\""
+                    in_string = True
+                    string_start = char[0] + 1
             else:
                 output[-1] += char[1]
         # checking for errors
@@ -92,6 +88,16 @@ class Compiler:
         for char in data[1:-1]:
             output.append(str(ord(char)))
         return str(output)
+
+
+    def raw(self, data: list, line: int, unseperated_line: str):
+        """Returns any string after raw, intended to allow you to add pure desmos, if that's necessary"""
+        # checking for errors
+        if len(data) != 2:
+            raise Exception(f"Error on line {line}. raw expected one argument, instead got {len(data)}")
+        if data[1][0] != "'" and data[1][-1] != "\"":
+            raise Exception(f"Error on line {line}. Expected a string after raw, instead got something else")
+        return data[1][1:-1]
 
 
     def define_variable(self, data: tuple or list, line: int, unseparated_line):
