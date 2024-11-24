@@ -1,4 +1,4 @@
-# TODO add logic gates, add graphs / functions, add displays, add lists, add actual functions (func, vars there will be f1, f2, f3, etc), add 'for', add incrementing list of ___ to ___ (n = [n1...n2), add support for things like this: 'n = x(3) + n1 for n = [-499.499]', add append to lists, add strings
+# TODO add logic gates, add graphs / functions, add displays, add actual functions (func, vars there will be f1, f2, f3, etc), add 'for', add incrementing list of ___ to ___ (n = [n1...n2), add support for things like this: 'n = x(3) + n1 for n = [-499.499]', add append to lists, add strings
 import unicodedata
 class Compiler:
     def __init__(self):
@@ -242,4 +242,3 @@ class Compiler:
         for i in range(len(compiled_lines)):
             compiled_string += compiled_lines[i] + "\n"
         return compiled_string + "\"Made using Desmos Script (https://github.com/Rufis72/Desmos-script)"
-print(Compiler().compile("testing compilation file"))
