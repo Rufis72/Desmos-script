@@ -25,7 +25,7 @@ class Compiler:
                 if how_deep_in_equation == 1:
                     equation_start = char[0] + 1
                 output[-1] += "("
-            elif char[1] == ")":
+            elif char[1] == ")" and not in_string:
                 how_deep_in_equation -= 1
                 if how_deep_in_equation == 0:
                     equation_start = 0
@@ -34,32 +34,36 @@ class Compiler:
                 output[-1] += ")"
             elif char[1] == " " and how_deep_in_equation == 0 and how_deep_in_array == 0 and not in_string:
                 output.append("")
-            elif char[1] == "[":
+            elif char[1] == "[" and not in_string:
                 how_deep_in_array += 1
                 if how_deep_in_array == 1:
                     array_start = char[0] + 1
                 output[-1] += "["
-            elif char[1] == "]":
+            elif char[1] == "]" and not in_string:
                 how_deep_in_array -= 1
                 if how_deep_in_array == 0:
                     array_start = 0
                 elif how_deep_in_array == -1:
                     raise Exception(f"Error on line {line}, character {char[0]}. Unmatched parentheses.")
                 output[-1] += "]"
-            elif char[1] == ".":
+            elif char[1] == "." and not in_string:
                 output.append(".")
             elif char[1] == "'":
                 if in_string and not string_starting_character:
                     in_string = False
+                    output[-1] += "'"
                 else:
                     string_starting_character = False
                     in_string = True
+                    output[-1] += "'"
             elif char[1] == "\"":
                 if in_string and not string_starting_character:
                     in_string = False
+                    output[-1] += "\""
                 else:
                     string_starting_character = True
                     in_string = True
+                    output[-1] += "\""
             else:
                 output[-1] += char[1]
         # checking for errors
@@ -73,10 +77,10 @@ class Compiler:
     def turn_string_into_array(self, data):
         """Turns a string into an array with character codes"""
         # defining variables
-        output = str(ord(data[0]))
-        for char in data[1:]:
-            output += ", " + str(ord(char))
-        return "[" + output + "]"
+        output = []
+        for char in data[1:-1]:
+            output.append(str(ord(char)))
+        return str(output)
 
 
     def define_variable(self, data: tuple or list, line: int, unseparated_line):
@@ -126,8 +130,11 @@ class Compiler:
 
 
     def reassign_variable(self, data: list, line: int, unseparated_line: str):
+        """Reassigns a variable, also performs proper type checks, syntax, etc"""
         if self.variables.get(data[0]) == None:
             raise Exception(f"Error on line {line}. '{data[0]}' has not been defined")
+        if (data[2][-1] == "'" or data[2][-1] == "\"") and self.variables.get(data[0])[0] != "string":
+            raise Exception(f"Error on line {line}. A string cannot be assigned to a(n) {self.variables.get(data[0])[0]} type variable")
         var_type = self.variables.get(data[0])[0]
         if var_type == "bool":
             if data[2] == "true":
@@ -180,6 +187,8 @@ class Compiler:
                     except:
                         raise Exception(f"Error on line {line}. '{num[1].replace(" ", "")}' is not a valid number")
                 return f"{data[0]} = ({data[2]})"
+        elif var_type == "string":
+            return data[0] + " = " + self.turn_string_into_array(data[2])
         elif var_type == "array":
             # checking for errors
             if data[2][0] != "[":
