@@ -1,12 +1,12 @@
-# TODO add logic gates, add graphs / functions, add displays, add lists, add actual functions (func, vars there will be f1, f2, f3, etc), add 'for', add incrementing list of ___ to ___ (n = [n1...n2), add support for things like this: 'n = x(3) + n1 for n = [-499.499]', add append to lists
-import pyperclip, webbrowser, keyboard, time, math
+# TODO add logic gates, add graphs / functions, add displays, add lists, add actual functions (func, vars there will be f1, f2, f3, etc), add 'for', add incrementing list of ___ to ___ (n = [n1...n2), add support for things like this: 'n = x(3) + n1 for n = [-499.499]', add append to lists, add strings
+import unicodedata
 class Compiler:
     def __init__(self):
         self.keyword_functions = {"let": self.define_variable, "when:": self.when}
         self.variables = {}
         self.variable_count = 0
         self.operators = "-+/*^%"
-        self.variable_types = ["function", "num", "bool", "point", "color", "array"]
+        self.variable_types = ["function", "num", "bool", "point", "color", "array", "string"]
 
 
     def split_string(self, data: str, line):
@@ -17,6 +17,8 @@ class Compiler:
         equation_start = 0
         how_deep_in_array = 0
         array_start = 0
+        in_string = False
+        string_starting_character = False # False = ', True = "
         for char in enumerate(data):
             if char[1] == "(":
                 how_deep_in_equation += 1
@@ -30,7 +32,7 @@ class Compiler:
                 elif how_deep_in_equation == -1:
                     raise Exception(f"Error on line {line}, character {char[0]}. Unmatched parentheses.")
                 output[-1] += ")"
-            elif char[1] == " " and how_deep_in_equation == 0 and how_deep_in_array == 0:
+            elif char[1] == " " and how_deep_in_equation == 0 and how_deep_in_array == 0 and not in_string:
                 output.append("")
             elif char[1] == "[":
                 how_deep_in_array += 1
@@ -46,6 +48,18 @@ class Compiler:
                 output[-1] += "]"
             elif char[1] == ".":
                 output.append(".")
+            elif char[1] == "'":
+                if in_string and not string_starting_character:
+                    in_string = False
+                else:
+                    string_starting_character = False
+                    in_string = True
+            elif char[1] == "\"":
+                if in_string and not string_starting_character:
+                    in_string = False
+                else:
+                    string_starting_character = True
+                    in_string = True
             else:
                 output[-1] += char[1]
         # checking for errors
@@ -54,6 +68,15 @@ class Compiler:
         if how_deep_in_array != 0:
             raise Exception(f"Error on line {line}, character {array_start}. Unmatched parentheses")
         return output
+
+
+    def turn_string_into_array(self, data):
+        """Turns a string into an array with character codes"""
+        # defining variables
+        output = str(ord(data[0]))
+        for char in data[1:]:
+            output += ", " + str(ord(char))
+        return "[" + output + "]"
 
 
     def define_variable(self, data: tuple or list, line: int, unseparated_line):
@@ -79,9 +102,9 @@ class Compiler:
         self.variable_count += 1
         # assigning the variable's value equal to the variable type's initial value
         if len(data) == 3:
-            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0)", "(0, 0, 0)", "[]"][self.variable_types.index(data[1])]}"
+            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0)", "(0, 0, 0)", "[]", "[]"][self.variable_types.index(data[1])]}"
         elif len(data) == 5:
-            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0)", "(0, 0, 0)", "[]"][self.variable_types.index(data[1])]}\n{self.reassign_variable(data[2:5], line, unseparated_line)}"
+            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0)", "(0, 0, 0)", "[]", "[]"][self.variable_types.index(data[1])]}\n{self.reassign_variable(data[2:5], line, unseparated_line)}"
 
 
     def when(self, data: list or tuple, line: int, unseparated_line: str):
