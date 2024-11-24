@@ -9,7 +9,7 @@ class Compiler:
         self.variable_types = ["function", "num", "bool", "point", "color", "array", "string"]
 
 
-    def split_string(self, data: str, line):
+    def split_line(self, data: str, line):
         """Splits a string into a list, seperated by ' ', and parses numbers correctly too."""
         # defining variables
         output = [""]
@@ -18,6 +18,7 @@ class Compiler:
         how_deep_in_array = 0
         array_start = 0
         in_string = False
+        string_start = 0
         string_starting_character = False # False = ', True = "
         for char in enumerate(data):
             if char[1] == "(":
@@ -49,20 +50,28 @@ class Compiler:
             elif char[1] == "." and not in_string:
                 output.append(".")
             elif char[1] == "'":
-                if in_string and not string_starting_character:
+                if in_string and string_starting_character:
                     in_string = False
                     output[-1] += "'"
-                else:
+                    string_start = 0
+                elif not string_starting_character:
                     string_starting_character = False
                     in_string = True
+                    output[-1] += "'"
+                    string_start += char[0] + 1
+                else:
                     output[-1] += "'"
             elif char[1] == "\"":
                 if in_string and not string_starting_character:
                     in_string = False
                     output[-1] += "\""
-                else:
+                    string_start = 0
+                elif string_starting_character:
                     string_starting_character = True
                     in_string = True
+                    output[-1] += "\""
+                    string_start += char[0] + 1
+                else:
                     output[-1] += "\""
             else:
                 output[-1] += char[1]
@@ -71,6 +80,8 @@ class Compiler:
             raise Exception(f"Error on line {line}, character {equation_start}. Unmatched parentheses")
         if how_deep_in_array != 0:
             raise Exception(f"Error on line {line}, character {array_start}. Unmatched parentheses")
+        if in_string:
+            raise Exception(f"Error on line {line}, character {string_start}. Unmatched quotes")
         return output
 
 
@@ -78,7 +89,7 @@ class Compiler:
         """Turns a string into an array with character codes"""
         # defining variables
         output = []
-        for char in data[1:-1]:
+        for char in data:
             output.append(str(ord(char)))
         return str(output)
 
@@ -202,7 +213,7 @@ class Compiler:
 
 
     def compile_line(self, data: str, line: int):
-        seperated_data = self.split_string(data, line)
+        seperated_data = self.split_line(data, line)
         func = self.keyword_functions.get(seperated_data[0])
         if func == None:
             if self.variables.get(seperated_data[0]) != None:
