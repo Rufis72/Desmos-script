@@ -1,4 +1,4 @@
-# TODO add logic gates, add graphs, add displays, and points,
+# TODO add logic gates, add graphs / functions, add displays, add lists, add actual functions (func, vars there will be f1, f2, f3, etc), add 'for', add incrementing list of ___ to ___ (n = [n1...n2), add support for things like this: 'n = x(3) + n1 for n = [-499.499]', add append to lists
 import pyperclip, webbrowser, keyboard, time, math
 class Compiler:
     def __init__(self):
@@ -6,6 +6,7 @@ class Compiler:
         self.variables = {}
         self.variable_count = 0
         self.operators = "-+/*^%"
+        self.variable_types = ["function", "num", "bool", "point", "color", "array"]
 
 
     def split_string(self, data: str, line):
@@ -14,26 +15,48 @@ class Compiler:
         output = [""]
         how_deep_in_equation = 0
         equation_start = 0
+        how_deep_in_array = 0
+        array_start = 0
         for char in enumerate(data):
             if char[1] == "(":
                 how_deep_in_equation += 1
-                if how_deep_in_equation == 0:
+                if how_deep_in_equation == 1:
                     equation_start = char[0] + 1
+                output[-1] += "("
             elif char[1] == ")":
                 how_deep_in_equation -= 1
                 if how_deep_in_equation == 0:
                     equation_start = 0
-            elif char[1] == " " and how_deep_in_equation == 0:
+                elif how_deep_in_equation == -1:
+                    raise Exception(f"Error on line {line}, character {char[0]}. Unmatched parentheses.")
+                output[-1] += ")"
+            elif char[1] == " " and how_deep_in_equation == 0 and how_deep_in_array == 0:
                 output.append("")
+            elif char[1] == "[":
+                how_deep_in_array += 1
+                if how_deep_in_array == 1:
+                    array_start = char[0] + 1
+                output[-1] += "["
+            elif char[1] == "]":
+                how_deep_in_array -= 1
+                if how_deep_in_array == 0:
+                    array_start = 0
+                elif how_deep_in_array == -1:
+                    raise Exception(f"Error on line {line}, character {char[0]}. Unmatched parentheses.")
+                output[-1] += "]"
+            elif char[1] == ".":
+                output.append(".")
             else:
                 output[-1] += char[1]
-            # checking for errors
-        if equation_start != 0:
+        # checking for errors
+        if how_deep_in_equation != 0:
             raise Exception(f"Error on line {line}, character {equation_start}. Unmatched parentheses")
+        if how_deep_in_array != 0:
+            raise Exception(f"Error on line {line}, character {array_start}. Unmatched parentheses")
         return output
 
 
-    def define_variable(self, data: tuple or list, line: int):
+    def define_variable(self, data: tuple or list, line: int, unseparated_line):
         """Returns a string based off the passed in data to define a variable, compiled into Desmos"""
         # checking if there is too little, or too much data passed in
         if len(data) < 3:
@@ -48,7 +71,7 @@ class Compiler:
                 raise Exception(f"Error on line {line}. A variable with the name '{data[1]}' has already been defined.")
         # checking if the variable type is valid
         try:
-            ["graph", "num", "bool", "point", "color"].index(data[1])
+            self.variable_types.index(data[1])
         except:
             raise Exception(f"Error on line {line}. '{data[1]}' Is not a valid variable type.")
         # updating self.variables, self.functions for variable reassignment, and incrementing self.variable_count
@@ -56,69 +79,75 @@ class Compiler:
         self.variable_count += 1
         # assigning the variable's value equal to the variable type's initial value
         if len(data) == 3:
-            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0), (0, 0, 0)"][["graph", "num", "bool", "point", "color)"].index(data[1])]}"
+            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0)", "(0, 0, 0)", "[]"][self.variable_types.index(data[1])]}"
         elif len(data) == 5:
-            return f"v{self.variable_count - 1} = 0\n{self.reassign_variable(data[2:5], line)}"
+            return f"v{self.variable_count - 1} = {["x", "0", "0", "(0, 0)", "(0, 0, 0)", "[]"][self.variable_types.index(data[1])]}\n{self.reassign_variable(data[2:5], line, unseparated_line)}"
 
 
-    def when(self, data: list or tuple, line: int):
+    def when(self, data: list or tuple, line: int, unseparated_line: str):
         """Returns a string based of the passed in data to only run code when something is true, compiled into Desmos"""
         if data[2] == "let" or data[2] == "when:":
             raise Exception(f"Error on line {line}, cannot perform {data[2]} within when")
         if data[0][len(data[0]) - 1] != ":":
             raise Exception(f"Error on line {line}, expected ':' after {data[1]}")
         compiled_line = ""
-        for keyword in data[2:len(data)]:
-            compiled_line += keyword + " "
+        compiled_line = unseparated_line.split(" ")
+        del compiled_line[0:2]
         return self.compile_line(compiled_line, line) + "{" + data[1] + "}"
 
 
-    def reassign_variable(self, data, line):
+    def builtin_class_method(self, data: list, line: int):
+        """Performs a method, such as append, to a variable or builtin, such as an array type variable"""
         if self.variables.get(data[0]) == None:
-            raise Exception(f"Error on line {line}. Cannot reassign a variable that has not been defined")
-        else:
-            var_type = self.variables.get(data[0])[0]
-            if var_type == "bool":
-                if data[2] == "true":
-                    return f"{data[0]} = 1"
-                elif data[2] == "false":
-                    return f"{data[0]} = 0"
-                else:
-                    raise Exception(f"Error on line {line}. '{data[0]}' cannot be assigned to a bool type variable.")
-                pass
-            elif var_type == "num":
-                # checking if the new value is just a number
-                try:
-                    return f"{data[0]} = {int(data[2])}"
-                except:
-                    # checking if data[2] is a math equation
-                    for num in data[2].split(" "):
-                        # removing any parentheses
-                        if num[0] == "(":
-                            del num[0]
-                        if num[-1] == ")":
-                            del num[-1]
-                        # checking if the number has any variables
-                        try:
-                            float(num)
+            raise Exception(f"Error on line {line}. '{data[0]}' has not been defined")
+
+
+    def reassign_variable(self, data: list, line: int, unseparated_line: str):
+        if self.variables.get(data[0]) == None:
+            raise Exception(f"Error on line {line}. '{data[0]}' has not been defined")
+        var_type = self.variables.get(data[0])[0]
+        if var_type == "bool":
+            if data[2] == "true":
+                return f"{data[0]} = 1"
+            elif data[2] == "false":
+                return f"{data[0]} = 0"
+            else:
+                raise Exception(f"Error on line {line}. '{data[0]}' cannot be assigned to a bool type variable.")
+            pass
+        elif var_type == "num":
+            # checking if the new value is just a number
+            try:
+                return f"{data[0]} = {int(data[2])}"
+            except:
+                # checking if data[2] is a math equation
+                for num in data[2].split(" "):
+                    # removing any parentheses
+                    if num[0] == "(":
+                        del num[0]
+                    if num[-1] == ")":
+                        del num[-1]
+                    # checking if the number has any variables
+                    try:
+                        float(num)
+                        continue
+                    except:
+                        # checking if the number is a math operator
+                        if len(num) == 1 and self.operators.__contains__(num):
                             continue
-                        except:
-                            # checking if the number is a math operator
-                            if len(num) == 1 and self.operators.__contains__(num):
-                                continue
-                            # checking if a variable has not been defined
-                            if self.variables.get(num) == None:
-                                raise Exception(f"Error on line {line}. '{num}' is not defined")
-                            # checking if a variable is of an illegal type for nums
-                            if self.variables.get(num)[0] != "num":
-                                raise Exception(f"Error on line {line}. '{num}' type variables cannot be used when changing the value of a num type variable")
-                    return  f"{data[0]} = {data[2]}"
-            elif var_type == "graph":
-                pass
-            elif var_type == "point":
+                        # checking if a variable has not been defined
+                        if self.variables.get(num) == None:
+                            raise Exception(f"Error on line {line}. '{num}' is not defined")
+                        # checking if a variable is of an illegal type for nums
+                        if self.variables.get(num)[0] != "num":
+                            raise Exception(f"Error on line {line}. '{num}' type variables cannot be used when changing the value of a num type variable")
+                return  f"{data[0]} = {data[2]}"
+        elif var_type == "function":
+            return data[0] + " = " + data[2]
+        elif var_type == "point":
+                # checking if there are parentheses
                 # checking the correct amount of numbers was passed in
                 if data[2].count(",") != 1:
-                    raise Exception(f"Error on line {line}. Expected two numbers within '(' and ')' instead got {data[2].count(",") + 1}")
+                    raise Exception(f"Error on line {line}. Expected two numbers within within parentheses, instead got {data[2].count(",") + 1}")
                 # checking if every number is a valid number
                 for num in enumerate(data[2].split(",")):
                     # checking if you can float the number
@@ -128,8 +157,16 @@ class Compiler:
                     except:
                         raise Exception(f"Error on line {line}. '{num[1].replace(" ", "")}' is not a valid number")
                 return f"{data[0]} = ({data[2]})"
-            else:
-                raise Exception(f"Error on line {line}. A variable has been defined with a non-existing variable type")
+        elif var_type == "array":
+            # checking for errors
+            if data[2][0] != "[":
+                raise Exception(f"Error on line {line}. Expected '[' before {data[1:]}")
+            if data[2][-1] != ']':
+                raise Exception(f"Error on line {line}. Expected ']' after {data[0:-1]}")
+            # returning the string
+            return data[0] + " = " + data[2]
+        else:
+            raise Exception(f"Error on line {line}. A variable has been defined with a non-existing variable type")
 
 
     def compile_line(self, data: str, line: int):
@@ -137,10 +174,10 @@ class Compiler:
         func = self.keyword_functions.get(seperated_data[0])
         if func == None:
             if self.variables.get(seperated_data[0]) != None:
-                return self.reassign_variable(data, line)
+                return self.reassign_variable(seperated_data, line, data)
             else:
                 raise Exception(f"Error on line {line}. '{seperated_data[0]}' is not defined")
-        return func(seperated_data, line)
+        return func(seperated_data, line, data)
 
 
     def compile(self, file: str):
@@ -151,9 +188,9 @@ class Compiler:
         file = open(file).readlines()
         # reading and compiling each line
         for i in range(len(file)):
-            compiled_lines.append(self.compile_line(file[i], i + 1))
+            compiled_lines.append(self.compile_line(file[i].replace("\n", ""), i + 1))
         # turning the list into a string
         for i in range(len(compiled_lines)):
             compiled_string += compiled_lines[i] + "\n"
         return compiled_string + "\"Made using Desmos Script (https://github.com/Rufis72/Desmos-script)"
-pyperclip.copy(Compiler().compile("testing compilation file"))
+print(Compiler().compile("testing compilation file"))
