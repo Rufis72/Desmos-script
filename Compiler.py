@@ -89,7 +89,7 @@ class Compiler:
         """Turns a string into an array with character codes"""
         # defining variables
         output = []
-        for char in data:
+        for char in data[1:-1]:
             output.append(str(ord(char)))
         return str(output)
 
