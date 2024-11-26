@@ -58,6 +58,7 @@ class Compiler:
                     output[-1] += "\'"
                     in_string = True
                     string_start = char[0] + 1
+                    string_starting_character = False
             elif char[1] == "\"":
                 if in_string and not string_starting_character:
                     output[-1] += "\""
@@ -68,6 +69,7 @@ class Compiler:
                     output[-1] += "\""
                     in_string = True
                     string_start = char[0] + 1
+                    string_starting_character = True
             else:
                 output[-1] += char[1]
         # checking for errors
