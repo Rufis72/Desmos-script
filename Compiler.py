@@ -1,4 +1,4 @@
-# TODO add logic gates, add graphs / functions, add displays, add actual functions (func, vars there will be f1, f2, f3, etc), add 'for', add incrementing list of ___ to ___ (n = [n1...n2), add support for things like this: 'n = x(3) + n1 for n = [-499.499]', add append to lists, add strings
+# TODO add logic gates, add graphs / functions, add displays, add actual functions (func, vars there will be f1, f2, f3, etc), add 'for', add incrementing list of ___ to ___ (n = [n1...n2), add support for things like this: 'n = x(3) + n1 for n = [-499.499]', add append to lists, add strings, add pre-added logic (https://www.desmos.com/calculator/zxxrd4ciab), add for loops with for in desmos (call a function like this: f(i) for i in [0...length_of_list], add imports to import things like logic gates?, add a way to load vector images, add beizier curves, change variable code to not abstract variable names and instead use subscript (types with '_'), add clickable objects, add semi-random randomness, add function via actions: 'f(x) = a->3 + a,b->b-1 (this is how if statements may work), add lambda graphs, add methods to thingys (like point.x), add game loop using a function and a game loop
 class Compiler:
     def __init__(self):
         self.keyword_functions = {"let": self.define_variable, "when:": self.when, "raw": self.raw}
@@ -81,6 +81,91 @@ class Compiler:
             raise Exception(f"Error on line {line}, character {string_start}. Unmatched quotes")
         return output
 
+
+    def split_text(self, data):
+        """Seperates multiple lines of text into chunk sized bits that can then be understood by the program"""
+        # defining variables
+        output = []
+        how_deep_in_curly_brackets = 0
+        curly_brackets_start = 0
+        data_inside_curly_brackets = [""]
+        for line in enumerate(data):
+            output = [*output, [""]]
+            how_deep_in_equation = 0
+            equation_start = 0
+            how_deep_in_array = 0
+            array_start = 0
+            in_string = False
+            string_start = 0
+            string_starting_character = False  # False = ' True = "
+            for char in enumerate(data):
+                if char[1] == "(":
+                    how_deep_in_equation += 1
+                    if how_deep_in_equation == 1:
+                        equation_start = char[0] + 1
+                    output[-1][-1] += "("
+                elif char[1] == ")" and not in_string:
+                    how_deep_in_equation -= 1
+                    if how_deep_in_equation == 0:
+                        equation_start = 0
+                    elif how_deep_in_equation == -1:
+                        raise Exception(f"Error on line[0] {line[0]}, character {char[0]}. Unmatched parentheses.")
+                    output[-1][-1] += ")"
+                elif char[1] == " " and how_deep_in_equation == 0 and how_deep_in_array == 0 and not in_string:
+                    if how_deep_in_curly_brackets == 0:
+                        output[-1].append("")
+                    else:
+                        data_inside_curly_brackets.append("")
+                elif char[1] == "[" and not in_string:
+                    how_deep_in_array += 1
+                    if how_deep_in_array == 1:
+                        array_start = char[0] + 1
+                    output[-1][-1] += "["
+                elif char[1] == "]" and not in_string:
+                    how_deep_in_array -= 1
+                    if how_deep_in_array == 0:
+                        array_start = 0
+                    elif how_deep_in_array == -1:
+                        raise Exception(f"Error on line[0] {line[0]}, character {char[0]}. Unmatched parentheses.")
+                    output[-1][-1] += "]"
+                elif char[1] == "." and not in_string:
+                    output[-1].append(".")
+                elif char[1] == "\'":
+                    if in_string and string_starting_character:
+                        output[-1][-1] += "\'"
+                    elif in_string and not string_starting_character:
+                        in_string = False
+                        output[-1][-1] += "\'"
+                    else:
+                        output[-1][-1] += "\'"
+                        in_string = True
+                        string_start = char[0] + 1
+                        string_starting_character = False
+                elif char[1] == "\"":
+                    if in_string and not string_starting_character:
+                        output[-1][-1] += "\""
+                    elif in_string and string_starting_character:
+                        in_string = False
+                        output[-1][-1] += "\""
+                    else:
+                        output[-1][-1] += "\""
+                        in_string = True
+                        string_start = char[0] + 1
+                        string_starting_character = True
+                elif char[1] == "{":
+                    how_deep_in_curly_brackets += 1
+                elif char[1] == "}":
+                    how_deep_in_curly_brackets -= 1
+                else:
+                    output[-1][-1] += char[1]
+            # checking for errors
+            if how_deep_in_equation != 0:
+                raise Exception(f"Error on line {line[0]}, character {equation_start}. Unmatched parentheses")
+            if how_deep_in_array != 0:
+                raise Exception(f"Error on line {line[0]}, character {array_start}. Unmatched parentheses")
+            if in_string:
+                raise Exception(f"Error on line {line[0]}, character {string_start}. Unmatched quotes")
+        return output
 
     def turn_string_into_array(self, data):
         """Turns a string into an array with character codes"""
@@ -243,3 +328,5 @@ class Compiler:
         for i in range(len(compiled_lines)):
             compiled_string += compiled_lines[i] + "\n"
         return compiled_string + "\"Made using Desmos Script (https://github.com/Rufis72/Desmos-script)"
+print(Compiler().split_text(open("testing compilation file").readlines()))
+print(Compiler().compile("testing compilation file"))
